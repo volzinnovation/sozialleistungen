@@ -202,14 +202,18 @@ def write_html(rows: list[dict[str, str]], target: Path = DEFAULT_HTML) -> None:
       .metrics {{ display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 1.4rem 0; }}
       .metrics span {{ background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 0.45rem 0.8rem; }}
       .filters {{ display: grid; gap: 0.7rem; grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(140px, 0.45fr)); margin-bottom: 1rem; }}
-      input, select {{ background: var(--paper); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font: inherit; min-height: 2.75rem; padding: 0.55rem 0.7rem; width: 100%; }}
+      input, select, button {{ background: var(--paper); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font: inherit; min-height: 2.75rem; padding: 0.55rem 0.7rem; width: 100%; }}
+      button {{ cursor: pointer; font-weight: 800; width: auto; }}
+      button:hover {{ border-color: var(--accent); color: var(--accent); }}
       .table-wrap {{ background: var(--paper); border: 1px solid var(--line); border-radius: 8px; overflow: auto; }}
       table {{ border-collapse: collapse; min-width: 980px; width: 100%; }}
       th, td {{ border-bottom: 1px solid var(--line); padding: 0.65rem 0.75rem; text-align: left; vertical-align: top; }}
       th {{ background: #ebe4d8; font-size: 0.82rem; position: sticky; top: 0; z-index: 1; }}
       td {{ font-size: 0.9rem; }}
       tr[hidden] {{ display: none; }}
-      .status {{ color: var(--muted); font-weight: 700; margin-bottom: 0.7rem; }}
+      .status {{ color: var(--muted); font-weight: 700; margin: 0; }}
+      .filter-tools {{ align-items: center; display: flex; flex-wrap: wrap; gap: 0.7rem; justify-content: space-between; margin-bottom: 0.7rem; }}
+      .copy-status {{ color: var(--muted); font-size: 0.9rem; min-height: 1.3rem; }}
       .downloads {{ display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1rem; }}
       .downloads a {{ background: var(--accent); border-radius: 6px; color: white; font-weight: 700; padding: 0.5rem 0.75rem; text-decoration: none; }}
       @media (max-width: 820px) {{
@@ -242,7 +246,11 @@ def write_html(rows: list[dict[str, str]], target: Path = DEFAULT_HTML) -> None:
         <select id="target"><option value="">Alle Zielgruppen</option>{options_for(targets)}</select>
         <select id="topic"><option value="">Alle Themenfelder</option>{options_for(topics)}</select>
       </section>
-      <p class="status"><span id="visible-count">{len(rows)}</span> / {len(rows)} sichtbar</p>
+      <div class="filter-tools">
+        <p class="status"><span id="visible-count">{len(rows)}</span> / {len(rows)} sichtbar</p>
+        <button id="copy-filter-link" type="button">Filter-Link kopieren</button>
+        <span id="copy-status" class="copy-status" aria-live="polite"></span>
+      </div>
       <section class="table-wrap" aria-label="Sozialleistungen Tabelle">
         <table>
           <thead>
@@ -268,7 +276,43 @@ def write_html(rows: list[dict[str, str]], target: Path = DEFAULT_HTML) -> None:
       const target = document.getElementById('target');
       const topic = document.getElementById('topic');
       const visibleCount = document.getElementById('visible-count');
-      function applyFilters() {{
+      const copyButton = document.getElementById('copy-filter-link');
+      const copyStatus = document.getElementById('copy-status');
+      const filterNodes = [search, category, target, topic];
+      const params = new URLSearchParams(window.location.search);
+
+      function setSelectValue(select, value) {{
+        if (!value) return;
+        const hasOption = Array.from(select.options).some((option) => option.value === value);
+        if (hasOption) select.value = value;
+      }}
+
+      function readUrlFilters() {{
+        search.value = params.get('search') || '';
+        setSelectValue(category, params.get('category') || '');
+        setSelectValue(target, params.get('target') || '');
+        setSelectValue(topic, params.get('topic') || '');
+      }}
+
+      function currentFilterParams() {{
+        const next = new URLSearchParams();
+        if (search.value.trim()) next.set('search', search.value.trim());
+        if (category.value) next.set('category', category.value);
+        if (target.value) next.set('target', target.value);
+        if (topic.value) next.set('topic', topic.value);
+        return next;
+      }}
+
+      function updateUrl() {{
+        const next = currentFilterParams();
+        const query = next.toString();
+        const nextUrl = query
+          ? `${{window.location.pathname}}?${{query}}`
+          : window.location.pathname;
+        window.history.replaceState(null, '', nextUrl);
+      }}
+
+      function applyFilters(updateAddress = true) {{
         const query = search.value.trim().toLowerCase();
         let visible = 0;
         rows.forEach((row) => {{
@@ -280,8 +324,50 @@ def write_html(rows: list[dict[str, str]], target: Path = DEFAULT_HTML) -> None:
           if (matches) visible += 1;
         }});
         visibleCount.textContent = visible;
+        if (updateAddress) updateUrl();
       }}
-      [search, category, target, topic].forEach((node) => node.addEventListener('input', applyFilters));
+
+      async function writeClipboard(text) {{
+        if (navigator.clipboard?.writeText) {{
+          try {{
+            await navigator.clipboard.writeText(text);
+            return;
+          }} catch (_error) {{
+            // Fall back to document selection below.
+          }}
+        }}
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-999px';
+        document.body.append(textarea);
+        textarea.select();
+        try {{
+          if (!document.execCommand('copy')) throw new Error('Copy rejected');
+        }} finally {{
+          textarea.remove();
+        }}
+      }}
+
+      async function copyFilterLink() {{
+        updateUrl();
+        try {{
+          await writeClipboard(window.location.href);
+          copyStatus.textContent = 'Filter-Link kopiert.';
+          window.setTimeout(() => {{
+            copyStatus.textContent = '';
+          }}, 1600);
+        }} catch (error) {{
+          console.error(error);
+          copyStatus.textContent = 'Kopieren ist in diesem Browser nicht verfügbar.';
+        }}
+      }}
+
+      readUrlFilters();
+      applyFilters(false);
+      filterNodes.forEach((node) => node.addEventListener('input', () => applyFilters(true)));
+      copyButton.addEventListener('click', copyFilterLink);
     </script>
   </body>
 </html>

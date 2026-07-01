@@ -2,7 +2,8 @@
 
 Dieses Repository enthält eine Liste der Sozialleistungen in den Formaten **YAML, CSV und Excel**. 
 `index.html` erzeugt zusätzlich einen statischen Explorer mit Suche und Filtern
-nach Gesetzbuch, Zielgruppe und Themenfeld.
+nach Gesetzbuch, Zielgruppe und Themenfeld. Filter werden in der URL gehalten,
+damit konkrete Ausschnitte als Link geteilt werden koennen.
 
 Eine PDF-Version der Liste ist [hier](https://www.ifo.de/publikationen/2025/monographie-autorenschaft/eine-inventur-im-haus-der-sozialen-hilfe-und)  veröffentlicht.
 

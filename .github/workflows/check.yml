@@ -42,5 +42,8 @@ jobs:
           assert payload["row_count"] > 100
           assert "Sozialleistungen Explorer" in html
           assert "visible-count" in html
+          assert "copy-filter-link" in html
+          assert "URLSearchParams" in html
+          assert "history.replaceState" in html
           PY
           git diff --exit-code -- sozialleistungen.csv sozialleistungen.xlsx sozialleistungen.json index.html
