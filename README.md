@@ -1,6 +1,8 @@
 # Liste Sozialleistungen
 
 Dieses Repository enthält eine Liste der Sozialleistungen in den Formaten **YAML, CSV und Excel**. 
+`index.html` erzeugt zusätzlich einen statischen Explorer mit Suche und Filtern
+nach Gesetzbuch, Zielgruppe und Themenfeld.
 
 Eine PDF-Version der Liste ist [hier](https://www.ifo.de/publikationen/2025/monographie-autorenschaft/eine-inventur-im-haus-der-sozialen-hilfe-und)  veröffentlicht.
 
@@ -8,6 +10,16 @@ Eine Erklärung zur Methodologie sowie Auswertungen aufbauend auf dieser Inventu
 
 
 Stand: September 2025
+
+## Explorer und Exporte regenerieren
+
+```sh
+python yml_transformer.py
+```
+
+Der Generator nutzt `sozialleistungen.yml` als Quelle und schreibt
+`sozialleistungen.csv`, `sozialleistungen.xlsx`, `sozialleistungen.json` und
+`index.html`.
 
 Struktur:
 - `sozialleistungen.yml`: canonical YAML (Gesetzbuch, Kategorie, Liste)
